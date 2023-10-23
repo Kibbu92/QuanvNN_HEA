@@ -1,5 +1,5 @@
-from orqviz.pca import (get_pca, perform_2D_pca_scan, plot_pca_landscape, 
-                        plot_optimization_trajectory_on_pca)
+# from orqviz.pca import (get_pca, perform_2D_pca_scan, plot_pca_landscape, 
+#                         plot_optimization_trajectory_on_pca)
 # from orqviz.scans import    plot_2D_scan_result_as_3D
     
 from sklearn.model_selection import train_test_split
@@ -118,15 +118,14 @@ if __name__ == '__main__':
     BATCH_SIZE = 32
     DATSET_NAME = 'MNIST' 
     SPLIT_FACTOR = 0.3
-    SHRINK_FACTOR = 1 
+    SHRINK_FACTOR = 2 
     EPOCHS = 100
     
-    OPT = ['fromage'] #('adam', 'rmsprop', 'adagrad', 'lion', 'sm3', 'sgd', 'yogi', 'fromage', 'adabelief') # 
-    NL  = [30] 
-    KNL = [(2, 2, 3)] 
     
-    rng_key = jax.random.PRNGKey(42)
-
+    
+    OPT = ['adam', 'rmsprop', 'adagrad', 'lion', 'sm3', 'sgd', 'yogi', 'fromage', 'adabelief']  #('adam', 'rmsprop', 'adagrad', 'lion', 'sm3', 'sgd', 'yogi', 'fromage', 'adabelief') # 
+    NL  = [10] 
+    KNL = [(3, 3, 3)]     
 
     #===========================================================================
     # Load Dataset
@@ -152,69 +151,68 @@ if __name__ == '__main__':
             for j in range(len(KNL)):
                 
                 KERNEL_SIZE = KNL[j]
-            
-                forward = hk.transform(forward_fun)
-        
-                params = forward.init(rng=rng_key, x=X_train[:BATCH_SIZE])
                 
                 SAVE_PATH = os.path.join('results', DATSET_NAME, f'{OPT[h]}_{NUM_LAYERS}_{KERNEL_SIZE}')
                 os.makedirs(SAVE_PATH, exist_ok=True)
-                
-                trainable_params = dict(params)
-                non_trainable_params = {"qcnn": {"gates": trainable_params["qcnn"].pop("gates")}} 
-                
-                opt_state = optimizer.init(trainable_params)
-                #===========================================================================
-                # Optimization Loop
-                loss_trajectory = []
-                param_trajectory = [trainable_params, ]
-                grad_trajectory = []
-                acc_train_trajectory = []
-                acc_test_trajectory = []
-                acc_tot_trajectory = []
-            
-                for i in range(EPOCHS):
-                    X_train, y_train = shuffle(X_train, y_train, random_state=i)
-                    batch_slices = gen_batches(len(X_train), BATCH_SIZE)
-            
-                    for batch in batch_slices:
-                        trainable_params, opt_state, loss_value, grads = update(opt_state, 
-                                                                                trainable_params, 
-                                                                                non_trainable_params, 
-                                                                                X_train[batch], y_train[batch])
-                        
-                        loss_trajectory.append(loss_value)
-                        param_trajectory.append(trainable_params)
-                        grad_trajectory.append(grads)
-            
-                    if i % 5 == 0:
-                        acc_train = evaluate(trainable_params, non_trainable_params, X_train, y_train)
-                        acc_test = evaluate(trainable_params, non_trainable_params, X_test, y_test)
-                        acc_tot = evaluate(trainable_params, non_trainable_params, X_tot, y_tot)
-            
-                        acc_train_trajectory.append(acc_train)
-                        acc_test_trajectory.append(acc_test)
-                        acc_tot_trajectory.append(acc_tot)
-            
-                        print(f'step {i}, loss: {loss_value}, ACC-train: {acc_train}, ACC-test: {acc_test}')
-                
-                acc_train = evaluate(trainable_params, non_trainable_params, X_train, y_train)
-                acc_test = evaluate(trainable_params, non_trainable_params, X_test, y_test)
-                
-               
-            
-                
-                with open(os.path.join(SAVE_PATH, 'accuracy.npy'), 'wb') as f:
-                    np.save(f, acc_train_trajectory)
-                    np.save(f, acc_test_trajectory)
-                    np.save(f, acc_tot_trajectory) 
-            
+                                                
+                for m in range(5):
                     
-                with open(os.path.join(SAVE_PATH, 'Paremeter_Trajectories.npy'),'wb') as f:
-                    np.save(f, non_trainable_params)  
-                    np.save(f, param_trajectory)
-                    np.save(f, loss_trajectory)
-                    np.save(f, grad_trajectory) 
+                    rng_key = jax.random.PRNGKey(42) + 19000*h
+
+                    forward = hk.transform(forward_fun)        
+                    params = forward.init(rng=rng_key, x=X_train[:BATCH_SIZE])               
+                      
+                    trainable_params = dict(params)
+                    non_trainable_params = {"qcnn": {"gates": trainable_params["qcnn"].pop("gates")}} 
+                    
+                    opt_state = optimizer.init(trainable_params)
+                
+                
+                    #===========================================================================
+                    # Optimization Loop
+                    loss_trajectory = []
+                    param_trajectory = [trainable_params, ]
+                    grad_trajectory = []
+                    acc_train_trajectory = []
+                    acc_test_trajectory = []
+                
+                    for i in range(EPOCHS):
+                        X_train, y_train = shuffle(X_train, y_train, random_state=i)
+                        batch_slices = gen_batches(len(X_train), BATCH_SIZE)
+                
+                        for batch in batch_slices:
+                            trainable_params, opt_state, loss_value, grads = update(opt_state, 
+                                                                                    trainable_params, 
+                                                                                    non_trainable_params, 
+                                                                                    X_train[batch], y_train[batch])
+                            
+                            loss_trajectory.append(loss_value)
+                            param_trajectory.append(trainable_params)
+                            grad_trajectory.append(grads)
+                
+                        if i % 5 == 0:
+                            acc_train = evaluate(trainable_params, non_trainable_params, X_train, y_train)
+                            acc_test = evaluate(trainable_params, non_trainable_params, X_test, y_test)
+                
+                            acc_train_trajectory.append(acc_train)
+                            acc_test_trajectory.append(acc_test)
+                
+                            print(f'step {i}, loss: {loss_value}, ACC-train: {acc_train}, ACC-test: {acc_test}')
+                    
+                    acc_train = evaluate(trainable_params, non_trainable_params, X_train, y_train)
+                    acc_test = evaluate(trainable_params, non_trainable_params, X_test, y_test)                                             
+                
+            
+                    with open(os.path.join(SAVE_PATH, 'accuracy'+f'_{m}'+'.npy'), 'wb') as f:
+                        np.save(f, acc_train_trajectory)
+                        np.save(f, acc_test_trajectory)
+                
+                        
+                    with open(os.path.join(SAVE_PATH, 'Paremeter_Trajectories'+f'_{m}'+'.npy'),'wb') as f:
+                        np.save(f, non_trainable_params)  
+                        np.save(f, param_trajectory)
+                        np.save(f, loss_trajectory)
+                        np.save(f, grad_trajectory) 
       
 
      
