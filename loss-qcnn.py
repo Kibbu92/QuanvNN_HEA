@@ -1,7 +1,3 @@
-# from orqviz.pca import (get_pca, perform_2D_pca_scan, plot_pca_landscape, 
-#                         plot_optimization_trajectory_on_pca)
-# from orqviz.scans import    plot_2D_scan_result_as_3D
-    
 from sklearn.model_selection import train_test_split
 from sklearn.datasets import load_digits
 from sklearn.utils import gen_batches
@@ -10,14 +6,12 @@ from pennylane import numpy as np
 import matplotlib.pyplot as plt
 import jax.numpy as jnp
 import haiku as hk
-# import pickle
 import glob
 import optax
 import jax
 import cv2
 import os
 
-# from scipy.interpolate import interpn
 
 from QCNN import *
 
@@ -93,22 +87,6 @@ def params_to_flat_array(param_trajectory):
     result = np.concatenate((result, np.array(param_trajectory['qcnn']['angles']).flatten(),))
     return np.array(result).flatten()[1:]
 
-def get_params_from_flat_array(flat_array):
-    len_b = shape_b[0]
-    len_w = shape_w[0]*shape_w[1]
-
-    b_raw = flat_array[:len_b].reshape(shape_b)
-    w_raw = flat_array[len_b:len_b+len_w].reshape(shape_w)
-    angles_raw = flat_array[len_b+len_w:].reshape(shape_angles)
-    
-    # params = {'qcnn': {'angles': angles_raw}, 'full_1': {'b': b_raw, 'w': w_raw}}
-    params = {'qcnn': {'angles': angles_raw}, 'full_1': {'b': b_raw, 'w': w_raw}}
-    return params
-
-@jax.jit
-def partCostFn(flat_params):
-    params = get_params_from_flat_array(flat_params)
-    return lossFn(params, non_trainable_params, X_train, y_train)
 
 
 if __name__ == '__main__':
@@ -122,10 +100,11 @@ if __name__ == '__main__':
     EPOCHS = 100
     
     
+    # ['adam', 'rmsprop', 'adagrad', 'lion', 'sm3', 'sgd', 'yogi', 'fromage', 'adabelief']   
     
-    OPT = ['adam', 'rmsprop', 'adagrad', 'lion', 'sm3', 'sgd', 'yogi', 'fromage', 'adabelief']  #('adam', 'rmsprop', 'adagrad', 'lion', 'sm3', 'sgd', 'yogi', 'fromage', 'adabelief') # 
-    NL  = [10] 
-    KNL = [(3, 3, 3)]     
+    OPT = ['adam', 'rmsprop', 'lion', 'adabelief'] # MIGLIORI 
+    NL  = [2]                                      # [ 2, 10, 30] Numero di Layer
+    KNL = [(4, 4, 3)]                              # [(2, 2, 3),(3, 3, 3),(4, 4, 3)] Dimensione Kernel             
 
     #===========================================================================
     # Load Dataset
@@ -152,12 +131,12 @@ if __name__ == '__main__':
                 
                 KERNEL_SIZE = KNL[j]
                 
-                SAVE_PATH = os.path.join('results', DATSET_NAME, f'{OPT[h]}_{NUM_LAYERS}_{KERNEL_SIZE}')
+                SAVE_PATH = os.path.join('results', DATSET_NAME,  f'{NUM_LAYERS}_{KERNEL_SIZE}' , f'{OPT[h]}_{NUM_LAYERS}_{KERNEL_SIZE}')
                 os.makedirs(SAVE_PATH, exist_ok=True)
                                                 
                 for m in range(5):
                     
-                    rng_key = jax.random.PRNGKey(42) + 19000*h
+                    rng_key = jax.random.PRNGKey(42) + 19000*m
 
                     forward = hk.transform(forward_fun)        
                     params = forward.init(rng=rng_key, x=X_train[:BATCH_SIZE])               
@@ -171,25 +150,26 @@ if __name__ == '__main__':
                     #===========================================================================
                     # Optimization Loop
                     loss_trajectory = []
-                    param_trajectory = [trainable_params, ]
+                    param_trajectory = [trainable_params,]
                     grad_trajectory = []
                     acc_train_trajectory = []
                     acc_test_trajectory = []
                 
-                    for i in range(EPOCHS):
+                    for i in range(EPOCHS+1):
                         X_train, y_train = shuffle(X_train, y_train, random_state=i)
                         batch_slices = gen_batches(len(X_train), BATCH_SIZE)
-                
+                        
+
                         for batch in batch_slices:
                             trainable_params, opt_state, loss_value, grads = update(opt_state, 
                                                                                     trainable_params, 
                                                                                     non_trainable_params, 
                                                                                     X_train[batch], y_train[batch])
                             
-                            loss_trajectory.append(loss_value)
-                            param_trajectory.append(trainable_params)
-                            grad_trajectory.append(grads)
-                
+                        loss_trajectory.append(loss_value)
+                        grad_trajectory.append(grads)
+                        param_trajectory.append(trainable_params)
+
                         if i % 5 == 0:
                             acc_train = evaluate(trainable_params, non_trainable_params, X_train, y_train)
                             acc_test = evaluate(trainable_params, non_trainable_params, X_test, y_test)
@@ -197,71 +177,20 @@ if __name__ == '__main__':
                             acc_train_trajectory.append(acc_train)
                             acc_test_trajectory.append(acc_test)
                 
-                            print(f'step {i}, loss: {loss_value}, ACC-train: {acc_train}, ACC-test: {acc_test}')
-                    
-                    acc_train = evaluate(trainable_params, non_trainable_params, X_train, y_train)
-                    acc_test = evaluate(trainable_params, non_trainable_params, X_test, y_test)                                             
+                            print(f'step {i}, loss: {loss_value}, ACC-train: {acc_train}, ACC-test: {acc_test}') 
                 
             
                     with open(os.path.join(SAVE_PATH, 'accuracy'+f'_{m}'+'.npy'), 'wb') as f:
                         np.save(f, acc_train_trajectory)
-                        np.save(f, acc_test_trajectory)
-                
+                        np.save(f, acc_test_trajectory)      
+
                         
-                    with open(os.path.join(SAVE_PATH, 'Paremeter_Trajectories'+f'_{m}'+'.npy'),'wb') as f:
+                    with open(os.path.join(SAVE_PATH, 'Paremeter_Trajectories'+f'_{m}'+'.npy'),'wb') as f:          
                         np.save(f, non_trainable_params)  
                         np.save(f, param_trajectory)
                         np.save(f, loss_trajectory)
                         np.save(f, grad_trajectory) 
       
-
      
         
-    # with open(os.path.join(SAVE_PATH, 'acc.txt'), 'w') as f:
-    #     f.write(f'ACC Train {acc_train} \n')
-    #     f.write(f'ACC Test  {acc_test}  \n')
-    #     f.write(f'ACC Tot   {acc_tot}   \n')
-
-    # #===========================================================================
-    # # Plot Acc/Loss Trends
-
-    # fig, ax = plt.subplots(nrows = 1, ncols = 2)
-    # ax[0].plot(acc_train_trajectory)
-    # ax[0].plot(acc_test_trajectory)
-    # ax[0].legend(['Train', 'Test'])
-    # ax[0].set_title('Accuracy')
-
-    # ax[1].plot(loss_trajectory)
-    # ax[1].set_title('Loss')
-    # plt.show()
-
-    # fig.tight_layout()
-    # plt.savefig(os.path.join(SAVE_PATH, 'acc-loss.png'))
-    # plt.close()
-
-    # #===========================================================================
-    # # Orqviz scanning
-    # shape_b = param_trajectory[0]['full_1']['b'].shape
-    # shape_w = param_trajectory[0]['full_1']['w'].shape
-    # shape_angles = param_trajectory[0]['qcnn']['angles'].shape
-    # flat_array = params_to_flat_array(param_trajectory[0])
-    # param_dict = get_params_from_flat_array(flat_array)
-    # flat_param_trajectory = [params_to_flat_array(param_trajectory_item) for param_trajectory_item in param_trajectory]
-    # pt = np.array(flat_param_trajectory)
-    # pca = get_pca(pt)
-    # scan_pca_result = perform_2D_pca_scan(pca, partCostFn, n_steps_x=20, offset=5)
-    
-
-
-    # fig, ax = plt.subplots()
-    # plot_pca_landscape(scan_pca_result, pca, fig=fig, ax=ax)
-    # plot_optimization_trajectory_on_pca(pt, pca, ax=ax, 
-    #                                     label="Optimization Trajectory", color="lightsteelblue")
-    # ax.legend()
-    # plt.show()
-    
-
-
-
-
-
+ 
