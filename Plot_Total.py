@@ -1,10 +1,4 @@
 # -*- coding: utf-8 -*-
-"""
-Created on Wed Oct 18 14:18:41 2023
-
-@author: andca
-"""
-
 import os
 import numpy as np
 import matplotlib.pyplot as plt
@@ -13,26 +7,14 @@ import optax
 
 from scipy.optimize import curve_fit
 from orqviz.pca import plot_pca_landscape, plot_optimization_trajectory_on_pca
-
-# from scipy.interpolate import splrep, BSpline
-# tck = splrep(Epoch_Loss, DG_Q_mean, s=SS)
-# DG_Q_mean = BSpline(*tck)(Epoch_Loss)
-
-# tck = splrep(Epoch_Loss, DG_C_mean, s=SS)
-# DG_C_mean = BSpline(*tck)(Epoch_Loss)
-
 #==============================================================================
 #==============================================================================
 #==============================================================================
-
-def flat_traj(param_trajectory):
-    
+def flat_traj(param_trajectory):    
     b = []
     w = []
-    q = []
-    
-    for i in range(len(param_trajectory)):
-        
+    q = []    
+    for i in range(len(param_trajectory)):        
         b.append(param_trajectory[i]['full']['b'])
         w.append(param_trajectory[i]['full']['w'])
         q.append(param_trajectory[i]['qcnn']['angles'])
@@ -50,7 +32,6 @@ def func(x, a, b, c, d, e, f):
 #==============================================================================
 #==============================================================================
 #==============================================================================
-
 if __name__ == '__main__':
     
     SS = 100
@@ -58,7 +39,10 @@ if __name__ == '__main__':
     sz = 15 
     props = dict(boxstyle='round', facecolor='wheat', alpha=0.5)
     
-    folder = os.getcwd() + '\\results\\MNIST' 
+    #==========================================================================
+    #========================= Plot Results ===================================
+    #==========================================================================
+    folder = os.getcwd() + '\\results\\MNIST'  # Dataset_name
  
     Layer_Krn = os.listdir(folder)
     
@@ -291,10 +275,7 @@ if __name__ == '__main__':
         ax4[1].tick_params(axis='both', labelsize=sz)
         ax4[1].grid()
         ax4[1].set_xlim([0, 100])
-        #----------------------------------------------------------------------   
-            
-    
-
+        #----------------------------------------------------------------------  
                                         
     color = ['blue', 'orange', 'green', 'red', 'purple', 'brown',   'pink',   'gray',   'olive']
     fig, ax = plt.subplots()
@@ -307,7 +288,53 @@ if __name__ == '__main__':
     # ax.set_ylim([-20, 20])
 
     plt.show()
-
+    
+    #==========================================================================
+    #=========================== Plot Time ====================================
+    #==========================================================================
+    folder = os.getcwd() + '\\results\\MIST_time'  # DATASET_NAME + '_time'
+    
+    Layer_Krn = os.listdir(folder)
+    #=========================================================================
+    for i in range(len(Layer_Krn)):  
+        
+        opt_fold = os.path.join(folder, Layer_Krn[i])
+        OPT = os.listdir(opt_fold)  
+        print('----------------------------------------------------')
+        print('')
+        print(f'{Layer_Krn[i]}')
+        TIME_TOT = []
+        STD_TOT = []        
+        for k in range(len(OPT)):
+            
+            text = f'{OPT[k].replace(Layer_Krn[i],"")[0:-1]}'            
+            
+            run_fold = os.path.join(opt_fold, OPT[k])     
+            run = os.listdir(run_fold)  
+            
+            TIME = []
+            STD  = []
+            for m in range(len(run)):    
+                
+                with open(os.path.join(run_fold, run[m]), 'rb') as f:
+                   time = pickle.load(f) 
+                
+                TIME.append(time['Time'])   
+                
+            TIME = np.vstack(TIME)[:,1:]            
+            TIME = np.mean(TIME,axis=1)
+            
+            MEAN = np.mean(TIME) 
+            STD  = np.std(TIME)
+            
+            print('----------------------------------------------------')
+            print(f'{text}: {MEAN} +- {STD}')
+            
+            TIME_TOT.append(TIME)            
+            STD_TOT.append(STD)
+            
+        TIME_TOT = np.stack(TIME_TOT) 
+        STD_TOT  = np.stack(STD_TOT) 
 
         
        
