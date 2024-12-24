@@ -1,4 +1,3 @@
-
 from orqviz.pca import get_pca, perform_2D_pca_scan
 
 from sklearn.model_selection import train_test_split
@@ -15,6 +14,10 @@ import jax
 import cv2
 import os
 import pickle
+
+from keras.datasets.mnist import load_data
+from keras.datasets.fashion_mnist import load_data as load_fashion_mnist
+from keras.datasets.cifar10 import load_data as load_cifar
 
 from QCNN import *
 ###############################################################################
