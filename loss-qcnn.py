@@ -16,9 +16,7 @@ import cv2
 import os
 import pickle
 
-
 from QCNN import *
-
 ###############################################################################
 ################################# FUNCTIONS ###################################
 ###############################################################################
@@ -41,11 +39,10 @@ def flat_traj(param_trajectory):
     pt = np.concatenate((b,w,q),axis=1)
     
     return pt
-
 #==============================================================================
 #==============================================================================             
 def load_dataset(dataset_name, split_factor=0.3, shrink_factor=12):
-
+    
     if dataset_name=='EuroSAT':
         X, y = [], []
 
@@ -63,18 +60,51 @@ def load_dataset(dataset_name, split_factor=0.3, shrink_factor=12):
     elif dataset_name == 'MNIST':
         X, y =  load_digits(return_X_y=True)
         X = X.repeat(3).reshape((-1, 8, 8, 3))
+        
+    elif dataset_name == 'MNIST_FULL':
+        train_data, test_data =  load_data()
+        X = np.concatenate((train_data[0],test_data[0]),axis=0)
+        y = np.concatenate((train_data[1],test_data[1]),axis=0)
+        X = X.repeat(3).reshape((-1, 28, 28, 3))
 
+        # Filter X to include only classes 0, 1 and 2
+        class_0_1_indices = np.where((y == 0) | (y == 1) | (y == 2))[0]
+        X = X[class_0_1_indices]
+        y = y[class_0_1_indices]  
+        
+    elif dataset_name == 'FASHION_MNIST_FULL':
+        train_data, test_data =  load_fashion_mnist()
+        X = np.concatenate((train_data[0],test_data[0]),axis=0)
+        y = np.concatenate((train_data[1],test_data[1]),axis=0)
+        X = X.repeat(3).reshape((-1, 28, 28, 3))
+ 
+        # Filter X to include only classes 0, 1 and 2
+        class_0_1_indices = np.where((y == 0) | (y == 1) | (y == 2))[0]
+        X = X[class_0_1_indices]
+        y = y[class_0_1_indices]
+
+    elif dataset_name == 'CIFAR':
+        train_data, test_data =  load_cifar()
+        X = np.concatenate((train_data[0],test_data[0]),axis=0)
+        y = np.concatenate((train_data[1],test_data[1]),axis=0)
+ 
+        # Filter X to include only classes 0, 1 and 2
+        class_0_1_indices = np.where((y == 0) | (y == 1))[0]
+        X = X[class_0_1_indices]
+        y = y[class_0_1_indices]
+        y = y.reshape(-1)
+        
+        X = X.reshape((-1, 32, 32, 3))
+        
     X = X/X.max()
 
     if shrink_factor >1: 
         X = X[::shrink_factor, ...]
-        y = y[::shrink_factor, ...]
-        
+        y = y[::shrink_factor, ...]        
     
     X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=split_factor, random_state=42)
 
     return X_train, X_test, y_train, y_test
-
 #==============================================================================
 #==============================================================================
 def forward_fun(x):
@@ -87,7 +117,6 @@ def forward_fun(x):
     x = x.reshape((n_samples, -1))
     x = full1(x)
     return x
-
 #==============================================================================
 #==============================================================================
 def lossFn(trainable_params: hk.Params, non_trainable_params: hk.Params, images, labels):
@@ -96,7 +125,6 @@ def lossFn(trainable_params: hk.Params, non_trainable_params: hk.Params, images,
     logits = forward.apply(params,rng_key, images)
     result = optax.softmax_cross_entropy_with_integer_labels(logits, labels).sum()
     return result
-
 #------------------------------------------------------------------------------
 @jax.jit
 def evaluate(trainable_params: hk.Params, non_trainable_params: hk.Params, images, labels) -> jax.Array:
@@ -105,7 +133,6 @@ def evaluate(trainable_params: hk.Params, non_trainable_params: hk.Params, image
     logits = forward.apply(params,rng_key, images)
     predictions = jnp.argmax(logits, axis=-1)
     return jnp.mean(predictions == labels)
-
 #------------------------------------------------------------------------------
 @jax.jit
 def update(opt_state, trainable_params, non_trainable_params, images, labels):
@@ -113,7 +140,6 @@ def update(opt_state, trainable_params, non_trainable_params, images, labels):
     updates, opt_state = optimizer.update(grads, opt_state, trainable_params)
     trainable_params = optax.apply_updates(trainable_params, updates)
     return trainable_params, opt_state, loss, grads
-
 #==============================================================================
 #==============================================================================
 def params_to_flat_array(param_trajectory):
@@ -122,7 +148,6 @@ def params_to_flat_array(param_trajectory):
     result = np.concatenate((result, np.array(param_trajectory['full']['w']).flatten(),))
     result = np.concatenate((result, np.array(param_trajectory['qcnn']['angles']).flatten(),))
     return np.array(result).flatten()[1:]
-
 #------------------------------------------------------------------------------
 def get_params_from_flat_array(flat_array):
     len_b = shape_b[0]
@@ -135,13 +160,12 @@ def get_params_from_flat_array(flat_array):
     # params = {'qcnn': {'angles': angles_raw}, 'full': {'b': b_raw, 'w': w_raw}}
     params = {'qcnn': {'angles': angles_raw}, 'full': {'b': b_raw, 'w': w_raw}}
     return params
-
 #------------------------------------------------------------------------------
 @jax.jit
 def partCostFn(flat_params):
     params = get_params_from_flat_array(flat_params)
     return lossFn(params, non_trainable_params, X_train, y_train)
-
+    
 ###############################################################################
 #################################### MAIN #####################################
 ###############################################################################
@@ -202,7 +226,8 @@ if __name__ == '__main__':
                     grad_trajectory = []
                     acc_train_trajectory = []
                     acc_test_trajectory = []
-                    
+                    epoch_time = []
+
                     X_train = X_TRAIN
                     y_train = y_TRAIN
 
@@ -225,14 +250,22 @@ if __name__ == '__main__':
                         param_trajectory.append(trainable_params)
                         loss_trajectory.append(loss_value)
                         grad_trajectory.append(grads)
-
+                        
+                        T0 = time.time()
                         for batch in batch_slices:
                             trainable_params, opt_state, loss_value, grads = update(opt_state, 
                                                                                     trainable_params, 
                                                                                     non_trainable_params, 
                                                                                     X_train[batch], y_train[batch])  
-                
+                        TF = time.time()                        
+                        DT = TF-T0                        
+                        epoch_time.append(DT)
                             
+                    #===========================================================================                    
+                    EPOCH_TIME = {'Time': epoch_time}                   
+
+                    with open(os.path.join(SAVE_PATH, 'EPOCH_TIME'+f'_{m}'+'.pkl'), 'wb') as f:
+                        pickle.dump(EPOCH_TIME, f)
                     #===========================================================================
                     ACC = {'Acc_Train': acc_train_trajectory, 'Acc_Test': acc_test_trajectory, 'Loss': loss_trajectory}   
                     
