@@ -142,10 +142,6 @@ def partCostFn(flat_params):
     params = get_params_from_flat_array(flat_params)
     return lossFn(params, non_trainable_params, X_train, y_train)
 
-#------------------------------------------------------------------------------
-###############################################################################
-
-
 ###############################################################################
 #################################### MAIN #####################################
 ###############################################################################
@@ -157,25 +153,19 @@ if __name__ == '__main__':
     DATSET_NAME = 'MNIST' 
     SPLIT_FACTOR = 0.3
     SHRINK_FACTOR = 2 
-    EPOCHS = 100
+    EPOCHS = 100    
     
-    # ['adam', 'rmsprop', 'adagrad', 'lion', 'sm3', 'sgd', 'yogi', 'fromage', 'adabelief']   
-    
-    OPT =['lion']      # MIGLIORI  'adam', 'rmsprop', 'lion', 'adabelief'
-    NL  = [3]                                       # [ 3, 10, 30] Numero di Layer
-    KNL = [(2, 2, 3)]                        # [(2, 2, 3),(3, 3, 3),(4, 4, 3)] Dimensione Kernel             
+    OPT = ['adam', 'rmsprop', 'adagrad', 'lion', 'sm3', 'sgd', 'yogi', 'fromage', 'adabelief']      
+    NL  = [ 3, 10, 30]                                        # Numero di Layer
+    KNL = [(2, 2, 3),(3, 3, 3)]                               # Dimensione Kernel             
 
     #===========================================================================
     # Load Dataset
     X_TRAIN, X_test, y_TRAIN, y_test = load_dataset(DATSET_NAME, SPLIT_FACTOR, SHRINK_FACTOR)
-    print(f'Dataset Size - Train {X_TRAIN.shape} - Test {X_test.shape}')
-    
-    X_tot = np.concatenate((X_TRAIN,X_test),axis=0)
-    y_tot = np.concatenate((y_TRAIN,y_test),axis=0)
+    print(f'Dataset Size - Train {X_TRAIN.shape} - Test {X_test.shape}')   
 
     SCAN = []
-    PT = []
-    
+    PT   = []    
     for k in range(len(NL)):
         
         NUM_LAYERS = NL[k]
@@ -255,7 +245,7 @@ if __name__ == '__main__':
                     with open(os.path.join(SAVE_PATH, 'Par_Grad'+f'_{m}'+'.pkl'), 'wb') as f:
                         pickle.dump(Par_Grad, f)
                     
-                    if m == 3 and OPT[h] == 'lion' :    
+                    if m == 3 and OPT[h] == 'lion' :  # choose which runs to save (time consuming) 
                         #===========================================================================
                         shape_b = param_trajectory[0]['full']['b'].shape
                         shape_w = param_trajectory[0]['full']['w'].shape
