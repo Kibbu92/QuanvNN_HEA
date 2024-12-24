@@ -206,7 +206,10 @@ if __name__ == '__main__':
                 print(f'Test: {OPT[h]}')  
                 
                 SAVE_PATH = os.path.join('results', DATSET_NAME,  f'{NUM_LAYERS}_{KERNEL_SIZE}' , f'{OPT[h]}_{NUM_LAYERS}_{KERNEL_SIZE}')
+                SAVE_PATH_time = os.path.join('results', DATSET_NAME + '_time',  f'{NUM_LAYERS}_{KERNEL_SIZE}' , f'{OPT[h]}_{NUM_LAYERS}_{KERNEL_SIZE}')
+
                 os.makedirs(SAVE_PATH, exist_ok=True)
+                os.makedirs(SAVE_PATH_time, exist_ok=True)
 
                 for m in range(5):
                     
@@ -264,7 +267,7 @@ if __name__ == '__main__':
                     #===========================================================================                    
                     EPOCH_TIME = {'Time': epoch_time}                   
 
-                    with open(os.path.join(SAVE_PATH, 'EPOCH_TIME'+f'_{m}'+'.pkl'), 'wb') as f:
+                    with open(os.path.join(SAVE_PATH_time, 'EPOCH_TIME'+f'_{m}'+'.pkl'), 'wb') as f:
                         pickle.dump(EPOCH_TIME, f)
                     #===========================================================================
                     ACC = {'Acc_Train': acc_train_trajectory, 'Acc_Test': acc_test_trajectory, 'Loss': loss_trajectory}   
