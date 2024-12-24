@@ -222,7 +222,7 @@ if __name__ == '__main__':
 
                   print(f'Test: {OPT[h]}')
 
-                  SAVE_PATH = os.path.join('results', DATSET_NAME + '_QCNN_CrossVal',  f'{NUM_LAYERS}_{KERNEL_SIZE}' , f'{OPT[h]}_{NUM_LAYERS}_{KERNEL_SIZE}')
+                  SAVE_PATH = os.path.join('results', DATSET_NAME + '_CrossVal',  f'{NUM_LAYERS}_{KERNEL_SIZE}' , f'{OPT[h]}_{NUM_LAYERS}_{KERNEL_SIZE}')
                   os.makedirs(SAVE_PATH, exist_ok=True)
 
                   for m in range(5):
