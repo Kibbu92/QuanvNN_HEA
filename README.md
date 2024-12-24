@@ -1,15 +1,11 @@
-# QuanvNN_HEA
-Per lanciare la rete QCNN, lanciare il file "loss-qcnn.py". 
+# QuanvNN_HEA.
+To launch the QCNN network, launch the file “loss-qcnn.py.” 
 
-In particolare, contiene 3 "cicli for":
+Specifically, it contains 3 “for loops”:
 
-1) (OPT) Quale ottimizzatore usare
-2) (Nl)  Numero di layer
-2) (KNL) Dimensione del kernel 
+1) (OPT) Which optimizer to use
+2) (Nl) Number of layers
+2) (KNL) Size of the kernel. 
    
-Prima di lanciare "loss-qcnn.py" settare i tre paramentri di cui sopra e il codice andrà automaticamente a creare una cartella con i risultati. 
-
-Per graficare i risultati in termini di Loss e Accuracy, basta lanciare il file "Plot_Loss_Accuracy.py". 
-Il file non solo grafica i risultati, ma li salva anche in formato .png nella cartella "results" creata precedentemente. 
-
-Il file "Plot.py" per ora non funziona, ma sarà in grado di plottare il Gradiente, il Barren Plateau e la Variazione dei Parametri 
+Before running “loss-qcnn.py” set the above three paramenters and the code will automatically go and create a folder with the results. 
+To graph the results in terms of Loss, Accuracy, Gradient, the Barren Plateau and the Variation of Parameters launch the file “Plot_Total.py”. 
