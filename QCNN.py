@@ -8,7 +8,7 @@ import jax
 class MyGateInitializer(hk.initializers.Initializer):
     def __call__(self, shape: Sequence[int], dtype=int) -> jax.Array:
         gate_idx = jax.random.randint(key=hk.next_rng_key(), shape=[shape[0], shape[1]], minval=0, maxval=3)
-        return jax.nn.one_hot(gate_idx, 3)
+        return jax.nn.one_hot(gate_idx, 3)#jnp.ones(shape)
     
 class QCNN(hk.Module):
     def __init__(self, kernel_size: Tuple = (2, 2, 3), 
@@ -73,7 +73,7 @@ class QCNN(hk.Module):
         gates = hk.get_parameter("gates", shape=[self.n_layers, self.n_qubits, 3], dtype=images.dtype, init=gates_init)
         angles = hk.get_parameter("angles", shape=[self.n_layers, self.n_qubits], dtype=images.dtype, init=angles_init)
         angles_mod = angles.repeat(3).reshape(self.n_layers, self.n_qubits, 3)
-
+        #print(gates)
         image_mod = self.mod_images(images)
         dim_i, dim_j = self._get_target_dims(images[0])
         result = self.vcirc(angles_mod, gates, image_mod).reshape((len(images), dim_i, dim_j, self.n_qubits))

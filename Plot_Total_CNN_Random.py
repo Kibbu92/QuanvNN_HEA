@@ -10,16 +10,11 @@ import numpy as np
 import matplotlib.pyplot as plt
 import pickle
 import optax
+from math import prod
 
 from scipy.optimize import curve_fit
 from orqviz.pca import plot_pca_landscape, plot_optimization_trajectory_on_pca
 
-# from scipy.interpolate import splrep, BSpline
-# tck = splrep(Epoch_Loss, DG_Q_mean, s=SS)
-# DG_Q_mean = BSpline(*tck)(Epoch_Loss)
-
-# tck = splrep(Epoch_Loss, DG_C_mean, s=SS)
-# DG_C_mean = BSpline(*tck)(Epoch_Loss)
 
 #==============================================================================
 #==============================================================================
@@ -27,23 +22,20 @@ from orqviz.pca import plot_pca_landscape, plot_optimization_trajectory_on_pca
 
 def flat_traj(param_trajectory):
     
-    b = []
-    w = []
-    q = []
+    bFL = []
+    wFL = []
     
     for i in range(len(param_trajectory)):
         
-        b.append(param_trajectory[i]['full']['b'])
-        w.append(param_trajectory[i]['full']['w'])
-        q.append(param_trajectory[i]['qcnn']['angles'])
+        bFL.append(param_trajectory[i]['CNN/~/FULL']['b'])
+        wFL.append(param_trajectory[i]['CNN/~/FULL']['w'])    
+
+    bFL = np.asanyarray(bFL).reshape((np.shape(bFL)[0],-1))
+    wFL = np.asanyarray(wFL).reshape((np.shape(wFL)[0],-1))
     
-    b = np.asanyarray(b).reshape((np.shape(b)[0],-1))
-    w = np.asanyarray(w).reshape((np.shape(w)[0],-1))
-    q = np.asanyarray(q).reshape((np.shape(q)[0],-1))
-    
-    pt = np.concatenate((b,w,q),axis=1)
-    
-    return pt
+    ptFL = np.concatenate((bFL,wFL),axis=1)
+
+    return ptFL
 
 def func(x, a, b, c, d, e, f):
     return a * np.exp(-b * x) + c * np.exp(-d * x) + e * np.exp(-f * x)    
@@ -58,7 +50,7 @@ if __name__ == '__main__':
     sz = 25 
     props = dict(boxstyle='round', facecolor='wheat', alpha=1)
     
-    folder = os.getcwd() + '\\results\\MNIST' 
+    folder = os.getcwd() + '\\results\\MNIST_CNN_Random'  #MNIST_CNN
  
     Layer_Krn = os.listdir(folder)
     
@@ -77,10 +69,10 @@ if __name__ == '__main__':
         fig0,ax0 = plt.subplots(nrows = 3, ncols = 3, constrained_layout = True, figsize=(15, 8))
         fig1,ax1 = plt.subplots(nrows = 3, ncols = 3, constrained_layout = True, figsize=(15, 8))
         fig2,ax2 = plt.subplots(nrows = 3, ncols = 3, constrained_layout = True, figsize=(15, 8))
-        fig3,ax3 = plt.subplots(nrows = 2, ncols = 1, figsize=(15, 13))
-        fig4,ax4 = plt.subplots(nrows = 2, ncols = 1, figsize=(15, 13))
+        fig3,ax3 = plt.subplots( figsize=(15, 13))
+        fig4,ax4 = plt.subplots( figsize=(15, 13))
         
-
+        
         Folder_i = folder+ '\\' + Layer_Krn[i]
         OPT = os.listdir(Folder_i)  
         legn = []
@@ -103,9 +95,8 @@ if __name__ == '__main__':
             Acc_test  = []
             Acc_train = []  
             Gradient  = []  
-            COS_Q     = []
-            COS_C     = []
-            DG_Q      = []
+            COS     = []
+            DG      = []
             DG_C      = [] 
             
            
@@ -123,32 +114,19 @@ if __name__ == '__main__':
                 with open(Folder_opt + '\\' + File[len_m+m], 'rb') as f:
                     TMP = pickle.load(f) 
                 
-                pt = TMP['Par']
+                pt = TMP['Par']    
+                ptFL = flat_traj(pt)   
                 
-                sh_b = pt[0]['full']['b'].shape
-                sh_w = pt[0]['full']['w'].shape
-                sh_q = pt[0]['qcnn']['angles'].shape
+                COS_dis = optax.cosine_distance(ptFL[0,:], ptFL)
                 
-                len_b = sh_b[0]
-                len_w = sh_w[0]*sh_w[1]
-                len_q = sh_q[0]*sh_q[1] 
-                
-                pt = flat_traj(pt)                
-                
-                COS_dis_Q = optax.cosine_distance(pt[0,len_b+len_w:], pt[:,len_b+len_w:])  
-                COS_dis_C = optax.cosine_distance(pt[0,0:len_b+len_w], pt[:,0:len_b+len_w])
-                
-                COS_Q.append(COS_dis_Q)
-                COS_C.append(COS_dis_C)                  
+                COS.append(COS_dis)
                 
                 #-----------------------------------------
-                gt = flat_traj(TMP['Grad'])
+                gtFL = flat_traj(TMP['Grad'])
 
-                Dg_Q = np.sqrt(np.sum(gt[:, len_b+len_w:]**2,axis=1))
-                Dg_C = np.sqrt(np.sum(gt[:,0:len_b+len_w]**2,axis=1))
+                Dg = np.sqrt(np.sum(gtFL**2,axis=1))
                 
-                DG_Q.append(Dg_Q)
-                DG_C.append(Dg_C) 
+                DG.append(Dg)
                 
                 #-----------------------------------------
                 if m==3:
@@ -213,24 +191,17 @@ if __name__ == '__main__':
             ax2[k//3,k-(k//3)*3].set_ylim([-1, 90])
             
             #------------------------------------------------------------------
-            Cos_Q_mean = np.mean(COS_Q,axis=0)
-            Cos_C_mean = np.mean(COS_C,axis=0)
-            
-            ax3[0].plot(Epoch_Loss,Cos_Q_mean,linewidth=3)                     
-            ax3[1].plot(Epoch_Loss,Cos_C_mean,linewidth=3)     
+            Cos_mean = np.mean(COS,axis=0)            
+            ax3.plot(Epoch_Loss,Cos_mean,linewidth=3)                     
             
             #------------------------------------------------------------------
-            DG_Q_mean = np.mean(DG_Q,axis=0)
-            DG_C_mean = np.mean(DG_C,axis=0)
+            DG_mean = np.mean(DG,axis=0)
             
-            popt_q_mean, pcov = curve_fit(func, Epoch_Loss, DG_Q_mean, maxfev = 2000000)
-            popt_c_mean, pcov = curve_fit(func, Epoch_Loss, DG_C_mean, maxfev = 2000000)
+            popt_q_mean, pcov = curve_fit(func, Epoch_Loss, DG_mean, maxfev = 2000000)
 
-            DG_Q_mean = func(Epoch_Loss,*popt_q_mean)
-            DG_C_mean = func(Epoch_Loss,*popt_c_mean)
+            DG_mean = func(Epoch_Loss,*popt_q_mean)
             
-            ax4[0].plot(Epoch_Loss,DG_Q_mean,linewidth=3)                     
-            ax4[1].plot(Epoch_Loss,DG_C_mean,linewidth=3) 
+            ax4.plot(Epoch_Loss,DG_mean,linewidth=3)                     
             
         #======================================================================
         ax0[1,1].legend(["$\mu$", "3$\sigma$"]   )
@@ -269,51 +240,27 @@ if __name__ == '__main__':
         ax2[2,0].set_ylabel('Loss', fontsize=sz) 
         
         #----------------------------------------------------------------------
-        ax3[0].set_title('Mean Parameter Variation (Cosine Distance)', fontsize=sz)
-        ax3[0].set_ylabel('Quantum', fontsize=sz) 
-        ax3[0].tick_params(axis='both', labelsize=sz)
-        ax3[0].legend(legn,ncol=2,fontsize=sz-10,framealpha=0.5)
-        ax3[0].grid()
-        ax3[0].set_xlim([0, 100])
-
-        ax3[1].set_xlabel('Epoch', fontsize=sz) 
-        ax3[1].set_ylabel('Classical', fontsize=sz) 
-        ax3[1].tick_params(axis='both', labelsize=sz)
-        ax3[1].grid()
-        ax3[1].set_xlim([0, 100])
+        ax3.set_title('Mean Parameter Variation', fontsize=sz)
+        ax3.set_ylabel('Cosine Distance', fontsize=sz) 
+        ax3.set_xlabel('Epoch', fontsize=sz) 
+        ax3.tick_params(axis='both', labelsize=sz)
+        ax3.legend(legn,ncol=2,fontsize=sz-10,framealpha=0.5)
+        ax3.grid()
+        ax3.set_xlim([0, 100])
         
         #----------------------------------------------------------------------
-        ax4[0].set_title('Mean Gradient Variation (Modulus)', fontsize=sz)
-        ax4[0].set_ylabel('Quantum', fontsize=sz) 
-        ax4[0].tick_params(axis='both', labelsize=sz)
-        # ax4[0].legend(legn)
-        ax4[0].grid()
-        ax4[0].set_xlim([0, 100])
+        ax4.set_title('Mean Gradient Variation', fontsize=sz)
+        ax4.set_ylabel('Modulus', fontsize=sz) 
+        ax4.set_xlabel('Epoch', fontsize=sz) 
+        ax4.tick_params(axis='both', labelsize=sz)
+        ax4.legend(legn,ncol=2,fontsize=sz-10,framealpha=0.5)
+        ax4.grid()
+        ax4.set_xlim([0, 100])
         
-        ax4[1].set_xlabel('Epoch', fontsize=sz) 
-        ax4[1].set_ylabel('Classical', fontsize=sz) 
-        ax4[1].tick_params(axis='both', labelsize=sz)
-        ax4[1].grid()
-        ax4[1].set_xlim([0, 100])
         #----------------------------------------------------------------------   
             
         PT_tot.append(PT)
 
-                                        
-    color = ['blue', 'orange', 'green', 'red', 'purple', 'brown',   'pink',   'gray',   'olive']
-    
-    for k in range(len(PCA)):
-        
-        fig, ax = plt.subplots()
-        plot_pca_landscape(SCAN[k], PCA[k], fig=fig, ax=ax)
-        for i in range(len(PT)):
-            plot_optimization_trajectory_on_pca(PT_tot[k][i], PCA[k], ax=ax, label=legn[i], color=color[i], linestyle='-',marker='none',linewidth=3)
-            
-        ax.legend()
-        # ax.set_xlim([-40, -10])
-        # ax.set_ylim([-20, 20])
-    
-        plt.show()
 
 
         
